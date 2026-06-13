@@ -1,0 +1,43 @@
+# Patch: make HiggsAudioTokenizer.from_pretrained tolerate acoustic-only
+# tokenizer weights (e.g. mlx-community/OmniVoice-bf16, which ships a 146MB
+# tokenizer instead of k2-fsa's 806MB full version including the HuBERT
+# semantic encoder).
+#
+# Effect:
+#   - TTS (decode: tokens -> waveform) WORKS even when semantic weights absent.
+#   - Voice cloning (encode: waveform -> tokens) is disabled when semantic
+#     weights absent — the model just won't have a usable audio_tokenizer
+#     attribute for encode, but decode still produces audio.
+#
+# To reapply after `pip install --upgrade mlx-audio`:
+#   patch -p1 < patches/higgs_audio_lenient_load.patch
+# from the directory above `mlx_audio/`.
+#
+# Reference path (in venv):
+#   .venv/lib/python3.14/site-packages/mlx_audio/codec/models/higgs_audio/higgs_audio.py
+#
+# Apply manually if `patch` doesn't apply cleanly to a future version.
+
+--- a/mlx_audio/codec/models/higgs_audio/higgs_audio.py
++++ b/mlx_audio/codec/models/higgs_audio/higgs_audio.py
+@@ -343,11 +343,17 @@
+             raise FileNotFoundError(f"Weights not found: {weights_path}")
+         config = HiggsAudioConfig.from_dict(json.loads(config_path.read_text()))
+         inst = cls(config)
+-        if config.semantic_model_config is not None:
+-            inst._init_encode_modules()
+         raw = cast(dict[str, mx.array], mx.load(str(weights_path)))
++        # Only init the HuBERT semantic encoder if the weights actually carry
++        # its parameters. mlx-community/OmniVoice-bf16 ships acoustic-only;
++        # decode (TTS) still works, only encode (voice cloning) is disabled.
++        has_semantic = any(
++            k.startswith(("semantic_model.", "encoder_semantic.")) for k in raw
++        )
++        if config.semantic_model_config is not None and has_semantic:
++            inst._init_encode_modules()
+         sanitized = inst.sanitize(raw)
+-        inst.load_weights(list(sanitized.items()))
++        inst.load_weights(list(sanitized.items()), strict=False)
+         mx.eval(inst.parameters())
+
+         return inst

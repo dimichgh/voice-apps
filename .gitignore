@@ -1,0 +1,37 @@
+# ---- Python ----
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# ---- Swift / SwiftPM build output ----
+.build/
+.swiftpm/
+DerivedData/
+*.xcodeproj/xcuserdata/
+Package.resolved
+
+# ---- Built app bundles (produced by build.sh; reproducible) ----
+*.app/
+
+# ---- External clones (re-created by install.sh; ~1GB of third-party repos) ----
+ext/
+
+# ---- Model weights / caches (live in ~/.cache/huggingface, never here) ----
+*.safetensors
+*.gguf
+*.mlx
+*.npz
+
+# ---- Audio artifacts (recordings / TTS output / benchmark samples) ----
+*.wav
+*.mp3
+*.flac
+
+# ---- macOS / editor cruft ----
+.DS_Store
+*.swp
+*~
