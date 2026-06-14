@@ -14,6 +14,7 @@ struct SettingsView: View {
                         Text(t.label).tag(t)
                     }
                 }
+                .onChange(of: settings.trigger) { _ in Permissions.triggerChanged = true }
                 Text("Hold to dictate; release to insert. Double-tap to lock a hands-free session.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

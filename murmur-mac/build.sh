@@ -25,10 +25,20 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Murmur"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+[[ -f Resources/AppIcon.icns ]] && cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 # Ad-hoc sign so macOS lets the permission prompts appear and remembers the
 # grants across launches (a stable code signature is what TCC keys off of).
-codesign --force --deep --sign - "$APP" >/dev/null
+# Sign with a stable self-signed identity if present (its designated
+# requirement references the cert, so Input Monitoring / Accessibility grants
+# survive rebuilds). Falls back to ad-hoc, where grants reset each rebuild.
+SIGN_ID="${MURMUR_SIGN_ID:-Murmur Dev Signing}"
+if codesign --force --deep --sign "$SIGN_ID" "$APP" 2>/dev/null; then
+    echo "    signed with '$SIGN_ID' — TCC grants persist across rebuilds"
+else
+    codesign --force --deep --sign - "$APP" >/dev/null
+    echo "    ad-hoc signed — TCC grants reset on each rebuild"
+fi
 
 echo "==> built $(pwd)/$APP"
 echo "Launch with:  open $APP"

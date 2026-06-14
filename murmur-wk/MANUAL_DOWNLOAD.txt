@@ -1,0 +1,60 @@
+WhisperKit large-v3-turbo — files to download via browser
+Right-click each link > 'Download Linked File As…' (or Save Link As),
+and SAVE WITH THE EXACT NAME shown. Put them all in ~/Downloads/whisperkit-dl/.
+
+SAVE AS: AudioEncoder.mlmodelc__weights__weight.bin
+   (1273.97 MB)
+   https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/openai_whisper-large-v3-v20240930_turbo/AudioEncoder.mlmodelc/weights/weight.bin?download=true
+
+SAVE AS: TextDecoder.mlmodelc__weights__weight.bin
+   (343.93 MB)
+   https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/openai_whisper-large-v3-v20240930_turbo/TextDecoder.mlmodelc/weights/weight.bin?download=true
+
+SAVE AS: TextDecoderContextPrefill.mlmodelc__weights__weight.bin
+   (12.29 MB)
+   https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/openai_whisper-large-v3-v20240930_turbo/TextDecoderContextPrefill.mlmodelc/weights/weight.bin?download=true
+
+SAVE AS: AudioEncoder.mlmodelc__model.mlmodel
+   (0.44 MB)
+   https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/openai_whisper-large-v3-v20240930_turbo/AudioEncoder.mlmodelc/model.mlmodel?download=true
+
+SAVE AS: MelSpectrogram.mlmodelc__weights__weight.bin
+   (0.37 MB)
+   https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/openai_whisper-large-v3-v20240930_turbo/MelSpectrogram.mlmodelc/weights/weight.bin?download=true
+
+SAVE AS: TextDecoder.mlmodelc__model.mlmodel
+   (0.11 MB)
+   https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/openai_whisper-large-v3-v20240930_turbo/TextDecoder.mlmodelc/model.mlmodel?download=true
+
+SAVE AS: TextDecoder.mlmodelc__coremldata.bin
+   (0.00 MB)
+   https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/openai_whisper-large-v3-v20240930_turbo/TextDecoder.mlmodelc/coremldata.bin?download=true
+
+SAVE AS: TextDecoderContextPrefill.mlmodelc__coremldata.bin
+   (0.00 MB)
+   https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/openai_whisper-large-v3-v20240930_turbo/TextDecoderContextPrefill.mlmodelc/coremldata.bin?download=true
+
+SAVE AS: AudioEncoder.mlmodelc__coremldata.bin
+   (0.00 MB)
+   https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/openai_whisper-large-v3-v20240930_turbo/AudioEncoder.mlmodelc/coremldata.bin?download=true
+
+SAVE AS: MelSpectrogram.mlmodelc__coremldata.bin
+   (0.00 MB)
+   https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/openai_whisper-large-v3-v20240930_turbo/MelSpectrogram.mlmodelc/coremldata.bin?download=true
+
+SAVE AS: AudioEncoder.mlmodelc__analytics__coremldata.bin
+   (0.00 MB)
+   https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/openai_whisper-large-v3-v20240930_turbo/AudioEncoder.mlmodelc/analytics/coremldata.bin?download=true
+
+SAVE AS: MelSpectrogram.mlmodelc__analytics__coremldata.bin
+   (0.00 MB)
+   https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/openai_whisper-large-v3-v20240930_turbo/MelSpectrogram.mlmodelc/analytics/coremldata.bin?download=true
+
+SAVE AS: TextDecoder.mlmodelc__analytics__coremldata.bin
+   (0.00 MB)
+   https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/openai_whisper-large-v3-v20240930_turbo/TextDecoder.mlmodelc/analytics/coremldata.bin?download=true
+
+SAVE AS: TextDecoderContextPrefill.mlmodelc__analytics__coremldata.bin
+   (0.00 MB)
+   https://huggingface.co/argmaxinc/whisperkit-coreml/resolve/main/openai_whisper-large-v3-v20240930_turbo/TextDecoderContextPrefill.mlmodelc/analytics/coremldata.bin?download=true
+

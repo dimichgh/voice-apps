@@ -2,44 +2,40 @@ import Foundation
 import AppKit
 import Combine
 
-/// The brain. Owns the state machine and the gesture interpretation, drives the
-/// HUD via @Published state, and wires hotkey → record → transcribe → paste.
-///
-/// Gestures (both built on the same single side-modifier key):
-///   • Hold-to-talk  — hold the key, speak, release. Transcribes on release.
-///   • Double-tap-to-lock — two quick taps start a hands-free session that
-///     records until you tap once more. Lets you talk without holding the key.
+/// The brain. Identical UX to Murmur Solo, but transcription goes through
+/// WhisperKit (CoreML/ANE) instead of whisper.cpp (Metal) — that's the whole
+/// point of this build: an A/B against the other two engines.
 @MainActor
 final class DictationController: ObservableObject {
 
     enum Phase: Equatable {
         case idle
-        case listening       // mic open, capturing
-        case transcribing    // waiting on STT (+ optional cleanup)
-        case inserting       // pasting into the focused app
+        case listening
+        case transcribing
+        case inserting
         case error(String)
     }
 
     @Published private(set) var phase: Phase = .idle
-    @Published private(set) var level: Float = 0      // 0...1 live mic level
-    @Published private(set) var locked = false        // hands-free session active
-    @Published private(set) var modelReady = true     // omlx server: no local model to warm up
+    @Published private(set) var level: Float = 0
+    @Published private(set) var locked = false
+    @Published private(set) var modelReady = false
 
     private let recorder = AudioRecorder()
-    private let client = TranscriptionClient()
+    private let transcriber: WhisperKitTranscriber
     private var hotkey: HotkeyMonitor
 
-    // Gesture timing.
     private var pressTime: TimeInterval = 0
     private var lastTapUp: TimeInterval = 0
-    private let holdFloor: TimeInterval = 0.35        // ≥ this = a real hold
-    private let doubleTapWindow: TimeInterval = 0.4   // two taps within = lock
+    private let holdFloor: TimeInterval = 0.35
+    private let doubleTapWindow: TimeInterval = 0.4
     private let maxRecordingSeconds: UInt64 = 60
     private var maxDurationTask: Task<Void, Never>?
 
     var onPermissionDenied: (() -> Void)?
 
-    init() {
+    init(modelFolder: String, tokenizerFolder: String?) {
+        transcriber = WhisperKitTranscriber(modelFolder: modelFolder, tokenizerFolder: tokenizerFolder)
         hotkey = HotkeyMonitor(trigger: Settings.shared.trigger)
         recorder.onLevel = { [weak self] lvl in self?.level = lvl }
         hotkey.onEvent = { [weak self] edge in self?.handle(edge) }
@@ -51,6 +47,16 @@ final class DictationController: ObservableObject {
 
     func start() {
         hotkey.start()
+        Task.detached(priority: .utility) { [transcriber] in
+            do {
+                try await transcriber.preload()
+                await MainActor.run { self.modelReady = true }
+                DebugLog.log("Controller: model ready")
+            } catch {
+                DebugLog.log("Controller: model preload failed — \(error.localizedDescription)")
+                await MainActor.run { self.phase = .error("Model failed to load") }
+            }
+        }
     }
 
     func updateTrigger(_ t: Settings.Trigger) {
@@ -68,30 +74,21 @@ final class DictationController: ObservableObject {
 
         case .up:
             let held = now - pressTime
-
             if locked {
-                // A tap during a hands-free session ends it.
                 locked = false
                 finishRecording()
                 return
             }
-
             if held >= holdFloor {
-                // Genuine push-to-talk hold.
                 finishRecording()
                 lastTapUp = 0
                 return
             }
-
-            // Short tap → part of a double-tap?
             if now - lastTapUp < doubleTapWindow {
-                // Second quick tap: lock into a hands-free session. We've been
-                // recording since this tap's .down, so just keep going.
                 locked = true
                 lastTapUp = 0
                 DebugLog.log("Controller: locked (hands-free)")
             } else {
-                // Lone short tap: drop the sliver of audio and arm double-tap.
                 cancelRecording()
                 lastTapUp = now
             }
@@ -106,9 +103,7 @@ final class DictationController: ObservableObject {
             phase = .listening
             level = 0
             HUDController.shared.show()
-            if Settings.shared.soundFeedback {
-                NSSound(named: "Tink")?.play()
-            }
+            if Settings.shared.soundFeedback { NSSound(named: "Tink")?.play() }
             DebugLog.log("Controller: listening")
             maxDurationTask?.cancel()
             maxDurationTask = Task { [weak self] in
@@ -127,27 +122,25 @@ final class DictationController: ObservableObject {
 
     private func cancelRecording() {
         maxDurationTask?.cancel()
-        recorder.stop()
+        _ = recorder.stop()
         phase = .idle
         HUDController.shared.hide()
     }
 
     private func finishRecording() {
         maxDurationTask?.cancel()
-        let wav = recorder.stop()
-        if Settings.shared.soundFeedback {
-            NSSound(named: "Pop")?.play()
-        }
-        // ~0.2s floor: anything shorter is a misfire, not speech.
-        guard wav.count > 44 + Int(16_000 * 2 * 0.2) else {
+        let samples = recorder.stop()
+        if Settings.shared.soundFeedback { NSSound(named: "Pop")?.play() }
+        let peak = samples.map { abs($0) }.max() ?? 0
+        let rms = samples.isEmpty ? 0 : sqrt(samples.reduce(Float(0)) { $0 + $1 * $1 } / Float(samples.count))
+        DebugLog.log("Controller: captured \(samples.count) samples, peak=\(String(format: "%.4f", peak)) rms=\(String(format: "%.4f", rms))")
+        guard samples.count > Int(Double(recorder.sampleRate) * 0.2) else {
             DebugLog.log("Controller: clip too short, discarding")
             phase = .idle
             HUDController.shared.hide()
             return
         }
-        // Energy gate: skip (near-)silence so the model can't hallucinate words.
-        let (peak, rms) = Self.wavEnergy(wav)
-        DebugLog.log("Controller: wav peak=\(String(format: "%.4f", peak)) rms=\(String(format: "%.4f", rms))")
+        // Energy gate: skip transcription on (near-)silence to avoid hallucinations.
         guard peak > 0.012, rms > 0.0035 else {
             DebugLog.log("Controller: below speech energy — skipping")
             phase = .idle
@@ -155,36 +148,13 @@ final class DictationController: ObservableObject {
             return
         }
         phase = .transcribing
-        Task { await runPipeline(wav: wav) }
+        Task { await runPipeline(samples: samples) }
     }
 
-    /// Peak and RMS (0...1) of a 16-bit PCM WAV (skips the 44-byte header).
-    private static func wavEnergy(_ wav: Data) -> (Float, Float) {
-        guard wav.count > 44 else { return (0, 0) }
-        return wav.withUnsafeBytes { raw -> (Float, Float) in
-            let base = raw.baseAddress!.advanced(by: 44)
-            let count = (wav.count - 44) / 2
-            guard count > 0 else { return (0, 0) }
-            let samples = base.assumingMemoryBound(to: Int16.self)
-            var peak: Float = 0, sumSq: Float = 0
-            for i in 0..<count {
-                let v = Float(Int16(littleEndian: samples[i])) / 32768
-                peak = max(peak, abs(v))
-                sumSq += v * v
-            }
-            return (peak, sqrt(sumSq / Float(count)))
-        }
-    }
-
-    private func runPipeline(wav: Data) async {
+    private func runPipeline(samples: [Float]) async {
         do {
-            var text = try await client.transcribe(wav: wav)
+            let text = try await transcriber.transcribe(samples: samples, language: Settings.shared.language)
             DebugLog.log("Controller: transcript = \"\(text)\"")
-            if Settings.shared.cleanupEnabled, !text.isEmpty {
-                let cleaned = try await client.cleanup(text)
-                if !cleaned.isEmpty { text = cleaned }
-                DebugLog.log("Controller: cleaned = \"\(text)\"")
-            }
             guard !text.isEmpty else {
                 phase = .idle
                 HUDController.shared.hide()
@@ -199,13 +169,12 @@ final class DictationController: ObservableObject {
             }
             phase = .inserting
             TextInjector.insert(text)
-            // Brief beat so the HUD shows "inserting" before vanishing.
             try? await Task.sleep(nanoseconds: 250_000_000)
             phase = .idle
             HUDController.shared.hide()
         } catch {
             DebugLog.log("Controller: pipeline error — \(error.localizedDescription)")
-            phase = .error(shortError(error))
+            phase = .error("Transcription failed")
             flashErrorThenHide()
         }
     }
@@ -216,11 +185,5 @@ final class DictationController: ObservableObject {
             phase = .idle
             HUDController.shared.hide()
         }
-    }
-
-    private func shortError(_ error: Error) -> String {
-        let ns = error as NSError
-        if ns.domain == NSURLErrorDomain { return "Can't reach omlx server" }
-        return "Transcription failed"
     }
 }

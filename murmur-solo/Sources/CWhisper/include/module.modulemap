@@ -1,0 +1,11 @@
+module CWhisper {
+    header "whisper.h"
+    header "ggml.h"
+    header "ggml-alloc.h"
+    header "ggml-backend.h"
+    header "ggml-cpu.h"
+    header "ggml-metal.h"
+    header "ggml-blas.h"
+    header "gguf.h"
+    export *
+}

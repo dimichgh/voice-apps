@@ -25,6 +25,18 @@ ext/
 *.gguf
 *.mlx
 *.npz
+*.bin
+
+# ---- Murmur Solo: on-device model + built whisper.cpp lib ----
+# Model (~1.6GB) is downloaded per murmur-solo/README; the static lib is
+# reproduced by murmur-solo/build-whisper.sh. Vendored headers ARE committed.
+murmur-solo/Models/
+murmur-solo/Frameworks/whisper/lib/
+murmur-solo/*.dmg
+
+# ---- Murmur WK: bundled CoreML model + tokenizer (downloaded per README) ----
+murmur-wk/Models/
+murmur-wk/*.dmg
 
 # ---- Audio artifacts (recordings / TTS output / benchmark samples) ----
 *.wav

@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>com.local.murmur</string>
+    <string>com.local.murmursolo</string>
     <key>CFBundleName</key>
-    <string>Murmur</string>
+    <string>MurmurSolo</string>
     <key>CFBundleDisplayName</key>
-    <string>Murmur</string>
+    <string>Murmur Solo</string>
     <key>CFBundleExecutable</key>
-    <string>Murmur</string>
+    <string>MurmurSolo</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleShortVersionString</key>
@@ -20,13 +20,10 @@
     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
-    <!-- Agent app: no Dock icon, no menu bar app menu. Murmur lives in the
-         status bar and floats a non-activating HUD so it never steals focus
-         from whatever app you're typing into. -->
     <key>LSUIElement</key>
     <true/>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Murmur listens to your microphone to transcribe speech into the app you are typing in.</string>
+    <string>Murmur Solo listens to your microphone to transcribe speech on-device into the app you are typing in.</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>LSApplicationCategoryType</key>

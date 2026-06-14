@@ -9,8 +9,6 @@ enum Main {
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
-        // Accessory: no Dock icon, no app menu. Murmur lives in the status bar
-        // and floats a non-activating HUD, so it never steals focus.
         app.setActivationPolicy(.accessory)
         app.run()
     }
@@ -24,14 +22,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        controller = DictationController()
+        controller = DictationController(modelPath: Self.resolveModelPath())
         HUDController.shared.attach(controller)
-        HUDController.shared.show()      // persistent flowing indicator, idle from launch
+        HUDController.shared.show()
 
         buildStatusItem()
         observeState()
 
-        // Ask for mic up front so the first dictation isn't eaten by a prompt.
         // Don't fire permission prompts at launch — Microphone and Input
         // Monitoring requests pop simultaneously and clobber each other. Instead
         // the user grants each from the menu bar (one at a time), where every
@@ -41,9 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                      "accessibility=\(Permissions.accessibilityLive)")
 
         Permissions.recordLaunchState()
-        controller.onPermissionDenied = { [weak self] in
-            self?.refreshStatusIcon()
-        }
+        controller.onPermissionDenied = { [weak self] in self?.refreshStatusIcon() }
         controller.start()
 
         // The HUD's right-click menu posts these to open Settings / relaunch.
@@ -52,8 +47,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(restartApp),
                                                name: .murmurRestart, object: nil)
 
-        DebugLog.log("Murmur launched. Trigger: \(Settings.shared.trigger.label). " +
-                     "Accessibility trusted=\(AXIsProcessTrusted())")
+        DebugLog.log("Murmur Solo launched. Trigger: \(Settings.shared.trigger.label). " +
+                     "model=\(Self.resolveModelPath())")
+    }
+
+    /// Find the bundled GGML model; fall back to a dev-tree Models/ folder.
+    static func resolveModelPath() -> String {
+        let name = "ggml-large-v3-turbo"
+        if let p = Bundle.main.path(forResource: name, ofType: "bin") { return p }
+        let fm = FileManager.default
+        let candidates = [
+            "\(fm.currentDirectoryPath)/Models/\(name).bin",
+            "Models/\(name).bin",
+        ]
+        for c in candidates where fm.fileExists(atPath: c) { return c }
+        return Bundle.main.bundlePath + "/Contents/Resources/\(name).bin"
     }
 
     // MARK: - Status item
@@ -69,26 +77,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func refreshStatusIcon() {
         guard let button = statusItem?.button else { return }
         let ok = AXIsProcessTrusted()
-        let name = ok ? "mic.fill" : "mic.slash.fill"
-        setButtonImage(button, symbol: name)
+        setButtonImage(button, symbol: ok ? "waveform.circle.fill" : "waveform.circle")
     }
 
-    /// Set the symbol, falling back to a text title if the symbol can't load —
-    /// an image-only `variableLength` status item with a nil image renders
-    /// zero-width and invisible, which looks like "the icon never appeared".
     private func setButtonImage(_ button: NSStatusBarButton, symbol: String) {
-        if let img = NSImage(systemSymbolName: symbol, accessibilityDescription: "Murmur") {
+        if let img = NSImage(systemSymbolName: symbol, accessibilityDescription: "Murmur Solo") {
             img.isTemplate = true
             button.image = img
             button.title = ""
         } else {
             button.image = nil
-            button.title = "🎙"
+            button.title = "S"
         }
     }
 
-    /// Recolor / re-glyph the menu-bar icon while listening so the bar itself
-    /// is a status indicator.
     private func observeState() {
         controller.$phase
             .receive(on: RunLoop.main)
@@ -106,7 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .store(in: &cancellables)
     }
 
-    // MARK: - Menu (rebuilt each open so checkmarks/status are live)
+    // MARK: - Menu
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
@@ -139,6 +141,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(hint)
         menu.addItem(.separator())
 
+        // On-device model status.
+        let modelRow = NSMenuItem(
+            title: controller.modelReady ? "✓ On-device model loaded" : "◌ Loading model…",
+            action: nil, keyEquivalent: "")
+        modelRow.isEnabled = false
+        menu.addItem(modelRow)
+
         let permHeader = NSMenuItem(title: "Permissions", action: nil, keyEquivalent: "")
         permHeader.isEnabled = false
         menu.addItem(permHeader)
@@ -150,17 +159,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         menu.addItem(.separator())
 
-        let cleanup = NSMenuItem(title: "Clean up with local model",
-                                 action: #selector(toggleCleanup), keyEquivalent: "")
-        cleanup.target = self
-        cleanup.state = s.cleanupEnabled ? .on : .off
-        menu.addItem(cleanup)
-
-        let sound = NSMenuItem(title: "Sound feedback",
-                               action: #selector(toggleSound), keyEquivalent: "")
+        let sound = NSMenuItem(title: "Sound feedback", action: #selector(toggleSound), keyEquivalent: "")
         sound.target = self
         sound.state = s.soundFeedback ? .on : .off
         menu.addItem(sound)
+
+        // Language submenu.
+        let langItem = NSMenuItem(title: "Language", action: nil, keyEquivalent: "")
+        let langMenu = NSMenu()
+        for (code, name) in Settings.languages {
+            let mi = NSMenuItem(title: name, action: #selector(selectLanguage(_:)), keyEquivalent: "")
+            mi.target = self
+            mi.representedObject = code
+            mi.state = (code == s.language) ? .on : .off
+            langMenu.addItem(mi)
+        }
+        langItem.submenu = langMenu
+        menu.addItem(langItem)
 
         // Trigger submenu.
         let triggerItem = NSMenuItem(title: "Activation key", action: nil, keyEquivalent: "")
@@ -179,19 +194,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
-        let restart = NSMenuItem(title: Permissions.needsRestart ? "↻ Restart to apply changes" : "Restart Murmur",
+        let restart = NSMenuItem(title: Permissions.needsRestart ? "↻ Restart to apply changes" : "Restart Murmur Solo",
                                  action: #selector(restartApp), keyEquivalent: "r")
         restart.target = self
         menu.addItem(restart)
-        let quit = NSMenuItem(title: "Quit Murmur", action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit Murmur Solo", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
     }
 
     // MARK: - Actions
 
-    @objc private func toggleCleanup() { Settings.shared.cleanupEnabled.toggle() }
     @objc private func toggleSound() { Settings.shared.soundFeedback.toggle() }
+
+    @objc private func selectLanguage(_ sender: NSMenuItem) {
+        if let code = sender.representedObject as? String { Settings.shared.language = code }
+    }
 
     @objc private func selectTrigger(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String,
@@ -209,11 +227,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func openSettings() {
         if settingsWindow == nil {
             let win = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 420, height: 360),
-                styleMask: [.titled, .closable],
-                backing: .buffered, defer: false
-            )
-            win.title = "Murmur Settings"
+                contentRect: NSRect(x: 0, y: 0, width: 420, height: 300),
+                styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            win.title = "Murmur Solo Settings"
             win.isReleasedWhenClosed = false
             win.center()
             win.contentView = NSHostingView(rootView: SettingsView())
