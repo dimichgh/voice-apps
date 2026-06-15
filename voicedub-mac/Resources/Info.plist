@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.local.voicedub</string>
+    <key>CFBundleName</key>
+    <string>VoiceDub</string>
+    <key>CFBundleDisplayName</key>
+    <string>VoiceDub</string>
+    <key>CFBundleExecutable</key>
+    <string>VoiceDub</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>VoiceDub needs microphone access to record a reference voice sample for cloning.</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.developer-tools</string>
+</dict>
+</plist>
