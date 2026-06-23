@@ -48,16 +48,19 @@ EXT = ROOT / "ext"
 @dataclass
 class Entry:
     slug: str
-    category: str          # "llm" | "voice" | "video"
+    category: str          # "llm" | "image" | "voice" | "video"
     kind: str              # "hf" | "git"
     repo: str              # HF repo id, or git URL for kind=git
-    runner: str            # "mlx_lm" | "mlx_audio" | "mlx_video" | "ltx2" | "git-readme"
+    runner: str            # "mlx_lm" | "mlx_vlm" | "mlx_audio" | "mflux" |
+                           # "mlx_video" | "mlx_video_hf" | "ltx2" | "git-readme"
     approx_gb: float       # rough on-disk footprint in GB
     fits_128gb: bool       # honest assessment for 128GB unified memory
     description: str
     verified: bool = False # confirmed by research / personal run
     notes: str = ""
     tags: list[str] = field(default_factory=list)
+    entrypoint: str = ""   # mflux console script (e.g. "mflux-generate-ideogram4")
+                           # or mlx_video submodule (e.g. "mlx_video.wan_2.generate")
 
 
 CATALOG: dict[str, Entry] = {e.slug: e for e in [
@@ -239,6 +242,94 @@ CATALOG: dict[str, Entry] = {e.slug: e for e in [
         notes="Used by voicechat-mac. Audio-in via mlx-vlm; speech-out via Kokoro sidecar through omlx /v1/audio/speech.",
         tags=["multimodal", "audio-in", "vision", "tools", "moe", "hi-quality"],
     ),
+    # ------ Image (text-to-image, runtime = mflux >=0.18) ------------------
+    # mflux uses a uniform `--model <hf-repo>` auto-download interface across
+    # per-architecture console scripts (mflux-generate-ideogram4/-qwen/-flux2/
+    # -z-image-turbo...). Install once: `.venv/bin/pip install -U mflux`.
+    Entry(
+        slug="ideogram-4-q8",
+        category="image",
+        kind="hf",
+        repo="MLXBits/ideogram-4-mlx-q8",
+        runner="mflux",
+        entrypoint="mflux-generate-ideogram4",
+        approx_gb=28.5,
+        fits_128gb=True,
+        verified=True,
+        description="Ideogram 4 @ 8-bit (mflux) — best-in-class TYPOGRAPHY / text-in-image and design layouts. The pick when the image needs legible words.",
+        notes="RUN-VERIFIED via mlxmgr (peak ~31.7GB MLX mem; 20-step preset ~2:20, 12-step TURBO ~1:25; headline text crisp). REQUIRES mflux from PR #445 (`.venv/bin/pip install --force-reinstall --no-deps git+https://github.com/plz12345/mflux.git@ideogram-mlx-forge-loader-pr`) — STOCK pip mflux 0.18.0 rejects the int8 mlx-forge layout ('requires FP8 checkpoint layout'). GATED + NON-COMMERCIAL: accept the agreement on HF + be logged in. Preset-driven: --preset V4_DEFAULT_20|V4_QUALITY_48|V4_TURBO_12 (--steps ignored). Prompt tip: trained on structured JSON captions — plain text degrades small/secondary text.",
+        tags=["text-to-image", "typography", "design", "gated", "non-commercial"],
+    ),
+    Entry(
+        slug="ideogram-4-q4",
+        category="image",
+        kind="hf",
+        repo="MLXBits/ideogram-4-mlx-q4",
+        runner="mflux",
+        entrypoint="mflux-generate-ideogram4",
+        approx_gb=15.8,
+        fits_128gb=True,
+        verified=True,
+        description="Ideogram 4 @ 4-bit (mflux) — lighter/faster Ideogram 4 for quick typography iteration.",
+        notes="Same gated non-commercial license + same mflux PR #445 branch requirement as ideogram-4-q8 (stock mflux won't load it). Full bf16 variant is MLXBits/ideogram-4-mlx (~52GB).",
+        tags=["text-to-image", "typography", "gated", "non-commercial", "fast"],
+    ),
+    Entry(
+        slug="qwen-image-2512-8bit",
+        category="image",
+        kind="hf",
+        repo="mlx-community/Qwen-Image-2512-8bit",
+        runner="mflux",
+        entrypoint="mflux-generate-qwen",
+        approx_gb=36.1,
+        fits_128gb=True,
+        verified=True,
+        description="Qwen-Image 2512 @ 8-bit (mflux) — best all-round APACHE-2.0 general T2V: prompt adherence, world knowledge, strong text rendering. Default commercial-safe pick.",
+        notes="Repo verified; run path not yet executed here (mflux-native qwen). 4-bit variant: mlx-community/Qwen-Image-2512-4bit (~26GB).",
+        tags=["text-to-image", "general", "apache-2.0", "text-render"],
+    ),
+    Entry(
+        slug="qwen-image-edit-2511-8bit",
+        category="image",
+        kind="hf",
+        repo="mlx-community/qwen-image-edit-2511-8bit",
+        runner="mflux",
+        entrypoint="mflux-generate-qwen-edit",
+        approx_gb=37.5,
+        fits_128gb=True,
+        verified=True,
+        description="Qwen-Image-Edit 2511 @ 8-bit (mflux) — newest instruct image EDITING (multi-image), Apache-2.0. Pairs with qwen-image-2512 (one architecture = gen + edit).",
+        notes="Edit runner takes --image-paths in.png --prompt '...'. Repo verified; run path not yet executed here.",
+        tags=["image-edit", "instruct", "apache-2.0"],
+    ),
+    Entry(
+        slug="flux2-klein-9b-8bit",
+        category="image",
+        kind="hf",
+        repo="mlx-community/flux2-klein-9b-8bit",
+        runner="mflux",
+        entrypoint="mflux-generate-flux2",
+        approx_gb=17.9,
+        fits_128gb=True,
+        verified=True,
+        description="FLUX.2 Klein 9B @ 8-bit (mflux) — modern DiT quality/edit workhorse, Apache-2.0. Lighter than Qwen-Image, supports edit via mflux-generate-flux2-edit.",
+        notes="Repo verified; run path not yet executed here. 4-bit: mlx-community/flux2-klein-9b-4bit (~10GB). FLUX.2-dev (flagship) has no MLX port yet — only Klein.",
+        tags=["text-to-image", "flux", "apache-2.0", "edit"],
+    ),
+    Entry(
+        slug="z-image-turbo-q8",
+        category="image",
+        kind="hf",
+        repo="deepsweet/Z-Image-Turbo-6B-MLX-Q8",
+        runner="mflux",
+        entrypoint="mflux-generate-z-image-turbo",
+        approx_gb=20.5,
+        fits_128gb=True,
+        verified=True,
+        description="Z-Image-Turbo 6B @ 8-bit (mflux) — fast few-step realism, Apache-2.0. The quick-iteration / photoreal pick.",
+        notes="RUN-VERIFIED end-to-end via mlxmgr: 25 steps ~67s, peak 13.9GB MLX mem, clean photoreal output. Repo is ~20.5GB on disk (bundles fp text encoder). 4-bit: deepsweet/Z-Image-Turbo-6B-MLX-Q4 (~6GB).",
+        tags=["text-to-image", "fast", "photoreal", "apache-2.0", "turbo"],
+    ),
     # ------ Voice ----------------------------------------------------------
     Entry(
         slug="omnivoice",
@@ -351,8 +442,64 @@ CATALOG: dict[str, Entry] = {e.slug: e for e in [
         fits_128gb=True,
         verified=True,
         description="MLX-Video — multi-model toolkit: LTX-2 19B, Wan2.1 (1.3B/14B T2V), Wan2.2 (T2V-14B, TI2V-5B, I2V-14B). Joint audio-video, LoRA finetuning.",
-        notes="Weights pulled per-model; size depends on which Wan/LTX variant you generate with.",
+        notes="Weights pulled per-model; size depends on which Wan/LTX variant you generate with. Real submodules are mlx_video.ltx_2.generate (--model-repo) and mlx_video.wan_2.generate (--model-dir) — NOT mlx_video.generate.",
         tags=["t2v", "i2v", "a2v", "wan", "ltx", "lora"],
+    ),
+    Entry(
+        slug="wan22-ti2v-5b",
+        category="video",
+        kind="hf",
+        repo="SceneWorks/wan2.2-ti2v-5b-mlx",
+        runner="mlx_video_hf",
+        entrypoint="mlx_video.models.wan_2.generate",
+        approx_gb=24.0,
+        fits_128gb=True,
+        verified=True,
+        description="Wan 2.2 TI2V-5B (MLX) — fast, low-memory Apache-2.0 video: does BOTH T2V and I2V from one 5B model. Cleanest-license daily driver; no audio.",
+        notes="RUN-VERIFIED via mlxmgr: 13-frame 832x480 20-step clip in ~46s, ~30GB+ RAM stayed free. ~24GB on disk (model 10 + t5 11 + vae 3). MEMORY WARNING: the default 1280x704 + many frames + NO tiling can OOM 128GB (caused a crash) — always pass --tiling auto and keep --num-frames modest (must be 4n+1). I2V: add --image in.png.",
+        tags=["t2v", "i2v", "wan", "apache-2.0", "fast"],
+    ),
+    Entry(
+        slug="wan22-t2v-a14b",
+        category="video",
+        kind="hf",
+        repo="SceneWorks/wan2.2-t2v-a14b-mlx",
+        runner="mlx_video_hf",
+        entrypoint="mlx_video.models.wan_2.generate",
+        approx_gb=56.0,
+        fits_128gb=True,
+        verified=True,
+        description="Wan 2.2 T2V-A14B (MLX) — highest-fidelity silent T2V, 2x14B MoE (~28B resident at int8). Apache-2.0. 128GB is one of the few machines that runs it at bf16.",
+        notes="bf16 ~56GB / int8 ~28GB (est). MoE loads high_noise + low_noise models. No audio. Repo verified; run-path untested here.",
+        tags=["t2v", "wan", "moe", "apache-2.0", "hi-quality"],
+    ),
+    Entry(
+        slug="wan22-i2v-a14b",
+        category="video",
+        kind="hf",
+        repo="SceneWorks/wan2.2-i2v-a14b-mlx",
+        runner="mlx_video_hf",
+        entrypoint="mlx_video.models.wan_2.generate",
+        approx_gb=56.0,
+        fits_128gb=True,
+        verified=True,
+        description="Wan 2.2 I2V-A14B (MLX) — highest-fidelity image-to-video, 2x14B MoE. Apache-2.0, no audio. Animate a still at top quality.",
+        notes="bf16 ~56GB / int8 ~28GB (est). Repo verified; run-path untested here.",
+        tags=["i2v", "wan", "moe", "apache-2.0", "hi-quality"],
+    ),
+    Entry(
+        slug="longcat-video-q8",
+        category="video",
+        kind="hf",
+        repo="mlx-community/LongCat-Video-q8",
+        runner="mlx_video_hf",
+        entrypoint="mlx_video.models.ltx_2.generate",
+        approx_gb=14.0,
+        fits_128gb=True,
+        verified=True,
+        description="LongCat-Video 13.6B @ 8-bit (MLX) — LONG-FORM specialist: minutes-long 720p/30fps via native video-continuation. MIT license (most permissive). No audio.",
+        notes="bf16 variant: mlx-community/LongCat-Video-bf16. Runtime/runner for LongCat is unconfirmed (listed mlx_video.ltx_2 as a guess) — verify the correct generate path before relying on `run`. Repo verified.",
+        tags=["t2v", "i2v", "long-form", "mit", "continuation"],
     ),
 ]}
 
@@ -403,7 +550,7 @@ def cmd_list(args: argparse.Namespace) -> int:
     for e in CATALOG.values():
         by_cat.setdefault(e.category, []).append(e)
 
-    for cat in ("llm", "voice", "video"):
+    for cat in ("llm", "image", "voice", "video"):
         if cat not in by_cat:
             continue
         print(f"\n=== {cat.upper()} ===")
@@ -550,6 +697,25 @@ def cmd_run(args: argparse.Namespace) -> int:
         cmd = [sys.executable, "-m", "mlx_vlm.generate", "--model", e.repo, *extra]
     elif e.runner == "mlx_audio":
         cmd = [sys.executable, "-m", "mlx_audio.tts.generate", "--model", e.repo, *extra]
+    elif e.runner == "mflux":
+        # mflux ships per-architecture console scripts in the venv's bin dir.
+        # Uniform interface: <script> --model <hf-repo> (auto-downloads).
+        exe = Path(sys.executable).parent / e.entrypoint
+        exe = str(exe) if exe.exists() else e.entrypoint
+        cmd = [exe, "--model", e.repo, *extra]
+    elif e.runner == "mlx_video_hf":
+        # Installed mlx_video package + HF-cached weights. Wan wants a local
+        # --model-dir; LTX-family wants --model-repo (auto-download).
+        if "wan_2" in e.entrypoint:
+            try:
+                from huggingface_hub import snapshot_download
+                weights = ["--model-dir", snapshot_download(repo_id=e.repo)]
+            except Exception as exc:  # noqa: BLE001
+                print(f"could not resolve weights dir: {exc}", file=sys.stderr)
+                return 5
+        else:
+            weights = ["--model-repo", e.repo]
+        cmd = [sys.executable, "-m", e.entrypoint, *weights, *extra]
     elif e.runner == "mlx_video":
         dest = EXT / Path(e.repo).stem.removesuffix(".git")
         cmd = [sys.executable, "-m", "mlx_video.generate", *extra]

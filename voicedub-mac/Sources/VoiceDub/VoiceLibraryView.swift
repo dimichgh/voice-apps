@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Tab 1 — manage voices (record / design / delete) and a text→speech
 /// playground that speaks any text in the selected voice.
@@ -13,6 +14,8 @@ struct VoiceLibraryView: View {
     @State private var text = "Hello! This is the voice you selected, reading whatever you type here."
     @State private var speaking = false
     @State private var error: String? = nil
+    /// WAV of the most recent successful synthesis — enables export.
+    @State private var lastWav: Data? = nil
 
     var body: some View {
         HSplitView {
@@ -76,6 +79,11 @@ struct VoiceLibraryView: View {
                 .font(.body)
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
 
+            Text("Tags: [pause] · [pause:1.2s] · [laughter] · [sigh] · [surprise-oh] · [question-en]")
+                .font(.caption2).foregroundColor(.secondary)
+                .help("[pause] inserts silence (default 0.5s; e.g. [pause:1.2s] or [pause:500ms]). "
+                    + "Emotion tags like [laughter], [sigh], [surprise-oh], [dissatisfaction-hnn] are spoken by the model.")
+
             HStack {
                 Button {
                     Task { await speak() }
@@ -90,6 +98,10 @@ struct VoiceLibraryView: View {
                 .disabled(speaking || text.trimmingCharacters(in: .whitespaces).isEmpty)
 
                 Button { app.player.stop() } label: { Label("Stop", systemImage: "stop.fill") }
+
+                Button { exportLast() } label: { Label("Export…", systemImage: "square.and.arrow.down") }
+                    .disabled(lastWav == nil)
+                    .help("Save the latest spoken audio to a file")
                 Spacer()
             }
 
@@ -102,12 +114,36 @@ struct VoiceLibraryView: View {
     private func speak() async {
         speaking = true; error = nil
         do {
-            let wav = try await app.client.tts(text: text, voice: catalog.current)
+            let wav = try await app.client.speak(text: text, voice: catalog.current)
+            lastWav = wav
             try app.player.play(wav: wav)
         } catch {
             self.error = error.localizedDescription
         }
         speaking = false
+    }
+
+    /// Save the most recent synthesis to a user-chosen .wav file.
+    private func exportLast() {
+        guard let wav = lastWav else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "wav") ?? .audio]
+        panel.nameFieldStringValue = "\(slug(catalog.current.label)).wav"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try wav.write(to: url, options: [.atomic])
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    /// File-system-safe version of a voice label for default filenames.
+    private func slug(_ s: String) -> String {
+        let cleaned = s.lowercased().map { $0.isLetter || $0.isNumber ? $0 : "-" }
+        let joined = String(cleaned)
+        let parts = joined.split(separator: "-", omittingEmptySubsequences: true)
+        let result = parts.joined(separator: "-")
+        return result.isEmpty ? "voice" : result
     }
 
     private func icon(for v: VoicePreset) -> String {

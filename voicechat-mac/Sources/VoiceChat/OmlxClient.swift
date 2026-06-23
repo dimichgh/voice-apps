@@ -6,12 +6,10 @@ struct OmlxConfig {
     // HF cache directory names (e.g. `models--mlx-community--…`). Sending
     // `mlx-community/…` 404s — the resolver only strips a `/` prefix, it
     // does NOT translate slashes to double-dashes.
-    // Chat LLM. Using Qwen3-Omni-30B (8-bit) as text LLM: it's downloaded, has
-    // a chat template, and supports native <tool_call> function calling.
-    // To switch to optimized Gemma 4 instruct (gemma-4-12B-it-qat-4bit), the
-    // weights must first be fetched on an unrestricted network — the corporate
-    // DLP proxy blocks HuggingFace large-file downloads on the current one.
-    var chatModel: String = "mlx-community--Qwen3-Omni-30B-A3B-Instruct-8bit"
+    // Chat LLM: Gemma 4 12B Instruct (8-bit). Smarter conversational model;
+    // omlx parses its tool-calls into OpenAI format, so function calling works
+    // (verified). Runs via the mlx-vlm engine (gemma4_unified).
+    var chatModel: String = "mlx-community--gemma-4-12B-it-8bit"
     var sttModel: String = "mlx-community--whisper-large-v3-turbo-asr-fp16"
     var temperature: Double = 0.7
     // Whether the chat model understands OpenAI-style `tools`. Qwen3 has native
