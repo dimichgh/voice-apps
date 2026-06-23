@@ -55,6 +55,22 @@ voice cloning or higher quality.
 
 3. **Swift 5.9+ / Xcode CLT** — `swift --version` should print 5.9 or later.
 
+## Install (one command)
+
+Instead of doing the prerequisites by hand, run the installer:
+
+```bash
+./install.sh                  # ensure omlx + required models, then build VoiceChat.app
+WITH_OPTIONAL=1 ./install.sh  # also pull OmniVoice (~2 GB) for richer/cloned voices
+```
+
+`install.sh` is idempotent: it installs omlx into `../.venv`, checks the HF cache
+for each required model (gemma-4-12B-it-8bit, whisper-large-v3-turbo-asr-fp16,
+Kokoro) and pulls any that are missing via `../mlxmgr.py`, then builds the app.
+Downloads use the normal CLI path; if one fails, it prints retry options — re-run
+(downloads resume), or `BROWSER=1 ./install.sh` to open the model page and pull it
+manually. It does **not** start the server — see the hint it prints (or step 2 above).
+
 ## Build & run
 
 ```bash

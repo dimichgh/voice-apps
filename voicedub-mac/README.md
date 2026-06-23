@@ -70,6 +70,21 @@ the `murmur-*` apps — copies their shared building blocks (`OmlxClient`,
    Model weights download from Meta's CDN on first separation. The app finds the
    venv at that fixed path and runs `python -m demucs` (MPS, falling back to CPU).
 
+## Install (one command)
+
+Instead of the steps above, run the installer:
+
+```bash
+./install.sh                # ensure omlx + ffmpeg + required models, then build VoiceDub.app
+WITH_DEMUCS=1 ./install.sh  # also set up the Demucs venv (voice/background separation)
+```
+
+`install.sh` is idempotent: it checks for ffmpeg/ffprobe, installs omlx into
+`../.venv`, pulls any missing required models (whisper-large-v3-turbo-asr-fp16,
+Qwen3-Omni-30B-8bit, OmniVoice) via `../mlxmgr.py`, then builds the app. Downloads
+use the normal CLI path; if one fails, re-run (downloads resume) or use
+`BROWSER=1 ./install.sh` to pull it manually. It does **not** start the server.
+
 ## Build & run
 
 ```bash

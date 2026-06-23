@@ -27,6 +27,22 @@ default triggers mean all three can run at once.
 WhisperKit (the `argmax-oss-swift` package) is a normal SwiftPM dependency, so
 there's no separate native-lib build step — just add the model and build.
 
+## Install (one command)
+
+```bash
+./install.sh             # fetch CoreML model + tokenizer (if missing), then build
+./install.sh --assemble  # rebuild the model folder from browser-downloaded blocked
+                         #   files in ~/Downloads/whisperkit-dl/, then build
+```
+
+Idempotent: it pulls the CoreML model + tokenizer via
+`huggingface_hub.snapshot_download`. If that fails (e.g. a network that blocks
+Hugging Face LFS, where the big `weight.bin` blobs 403), run
+`BROWSER=1 ./install.sh` to open the manifest (`whisperkit-download.html` /
+`MANUAL_DOWNLOAD.txt`), browser-download the files into `~/Downloads/whisperkit-dl/`,
+then `./install.sh --assemble` reconstructs the folder and builds. Prefer this
+over the manual steps below.
+
 ## Build
 
 ```bash
@@ -65,6 +81,14 @@ System Settings › Privacy & Security; the menu shows live ✓/⚠ + model stat
 > If the hotkey stops firing after a rebuild, re-toggle them (or
 > `tccutil reset ListenEvent com.local.murmurwk` /
 > `tccutil reset Accessibility com.local.murmurwk`) and relaunch.
+
+## Distribute to another Apple Silicon Mac
+`./package-dmg.sh` (or `./install.sh --dmg`) builds the app with the CoreML model
+bundled and produces `MurmurWK.dmg` — drag to Applications. It's ad-hoc signed,
+**not notarized**, so on the target Mac the first launch needs right-click → Open
+(or `xattr -dr com.apple.quarantine /Applications/MurmurWK.app`). Then expect the
+one-time ~1–2 min CoreML specialization on that Mac before it transcribes. Apple
+Silicon, macOS 13+ only.
 
 ## Layout
 

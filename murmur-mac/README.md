@@ -37,6 +37,19 @@ dictation apps do: save your pasteboard, put the transcript on it, synthesize
 ⌘V, then restore the pasteboard a beat later (the delay matters — paste is
 async, and restoring too soon makes the target read the *old* clipboard).
 
+## Install (one command)
+
+```bash
+./install.sh                  # ensure omlx + the Whisper model, then build Murmur.app
+WITH_OPTIONAL=1 ./install.sh  # also pull Qwen3-Omni-30B (~38 GB) for the cleanup pass
+```
+
+Idempotent: installs omlx into `../.venv`, pulls the required Whisper STT model
+(and, with `WITH_OPTIONAL=1`, the optional cleanup LLM) via `../mlxmgr.py`, then
+builds the app. Downloads use the normal CLI path; if one fails, re-run (downloads
+resume) or use `BROWSER=1 ./install.sh` to pull it manually. Does **not** start the
+omlx server (see the hint it prints, or Prerequisites).
+
 ## Build & run
 
 ```bash

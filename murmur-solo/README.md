@@ -22,6 +22,19 @@ so both can run at once without fighting over a key.
 
 No server, no cleanup LLM — just capture → whisper.cpp → paste.
 
+## Install (one command)
+
+```bash
+./install.sh         # build whisper.cpp lib, fetch the GGML model if missing, build app
+./install.sh --dmg   # ...then also package a distributable MurmurSolo.dmg
+```
+
+Idempotent: builds the whisper.cpp static lib (cloning whisper.cpp on first run),
+downloads `ggml-large-v3-turbo.bin` (~1.6 GB) into `Models/` if it's not already
+there, then compiles and bundles the app. The download uses the normal CLI path;
+if it fails, re-run, or use `BROWSER=1 ./install.sh` to open the download page and
+drop the file into `Models/`. Prefer this over the manual steps below.
+
 ## Build
 
 Two steps: build the whisper.cpp static library once, then build the app.
