@@ -1,5 +1,8 @@
 # ---- Python ----
 .venv/
+.venv-*/
+# vanch007/mlx-Yue checkout (own git repo) used by yue2-mac
+mlx-yue/
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -47,3 +50,9 @@ murmur-wk/*.dmg
 .DS_Store
 *.swp
 *~
+
+# PersonaPlex scratch/benchmark artifacts
+scratch/
+scratch_ab_input.wav
+personaplex-mac/.build/
+personaplex-mac/PersonaPlexMac.app/

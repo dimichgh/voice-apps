@@ -431,6 +431,58 @@ CATALOG: dict[str, Entry] = {e.slug: e for e in [
         notes="On M5 this runs via PyTorch-MPS, not Metal TensorOps — slower than MLX-native voice.",
         tags=["edit", "paralinguistic", "mps-only"],
     ),
+    Entry(
+        slug="personaplex-bf16",
+        category="voice",
+        kind="hf",
+        repo="nvidia/personaplex-7b-v1",
+        runner="personaplex_py",
+        approx_gb=17.1,
+        fits_128gb=True,
+        verified=True,
+        description="NVIDIA PersonaPlex 7B v1 — full-duplex speech-to-speech (Moshi arch: Mimi codec + temporal transformer + depformer). Reference bf16 PyTorch checkpoint.",
+        notes="Gated repo (auto-approve) — needs an HF token. This is the ORIGINAL PyTorch layout; the personaplex-mlx Python port loads it and quantizes on the fly (-q 4 / -q 8). It does NOT load the aufklarer pre-split MLX repos.",
+        tags=["full-duplex", "s2s", "conversational", "moshi"],
+    ),
+    Entry(
+        slug="personaplex-mlx-8bit",
+        category="voice",
+        kind="hf",
+        repo="aufklarer/PersonaPlex-7B-MLX-8bit",
+        runner="personaplex_swift",
+        approx_gb=9.8,
+        fits_128gb=True,
+        verified=True,
+        description="PersonaPlex 7B pre-quantized to MLX 8-bit — split temporal/depformer/embeddings/mimi safetensors + 18 voice presets. The quality pick.",
+        notes="Layout expected by soniqo/speech-swift's PersonaPlex target, not by the Python port. Author's card claims int8 is BOTH better quality and ~30% faster than the 4-bit build (112 vs 158 ms/step) — verify locally, it contradicts the blog post.",
+        tags=["full-duplex", "s2s", "swift", "8bit"],
+    ),
+    Entry(
+        slug="personaplex-mlx-4bit",
+        category="voice",
+        kind="hf",
+        repo="aufklarer/PersonaPlex-7B-MLX-4bit",
+        runner="personaplex_swift",
+        approx_gb=5.8,
+        fits_128gb=True,
+        verified=True,
+        description="PersonaPlex 7B pre-quantized to MLX 4-bit — smallest full-duplex build (~4.9GB of weights).",
+        notes="Temporal attn Q/K/V-out + FFN at 4-bit group_size=64; attn INPUT projection left fp16 (packed layout), depformer + Mimi unquantized. That fp16 input proj is the likely reason 8-bit measures faster.",
+        tags=["full-duplex", "s2s", "swift", "4bit"],
+    ),
+    Entry(
+        slug="personaplex-mlx-py",
+        category="voice",
+        kind="git",
+        repo="https://github.com/mu-hashmi/personaplex-mlx.git",
+        runner="git-readme",
+        approx_gb=0.1,
+        fits_128gb=True,
+        verified=True,
+        description="personaplex-mlx — Python/MLX runtime for PersonaPlex: realtime terminal, realtime web UI (localhost:8998), and offline WAV mode. Loads personaplex-bf16.",
+        notes="Needs Python 3.12 (repo pin) — use .venv-personaplex, not the 3.14 .venv. No echo cancellation in either client; use headphones. NVIDIA's own server repo is CUDA-only and will not run here.",
+        tags=["full-duplex", "s2s", "server", "python"],
+    ),
     # ------ Video ----------------------------------------------------------
     Entry(
         slug="ltx2-mlx",
@@ -514,6 +566,71 @@ CATALOG: dict[str, Entry] = {e.slug: e for e in [
         notes="bf16 variant: mlx-community/LongCat-Video-bf16. Runtime/runner for LongCat is unconfirmed (listed mlx_video.ltx_2 as a guess) — verify the correct generate path before relying on `run`. Repo verified.",
         tags=["t2v", "i2v", "long-form", "mit", "continuation"],
     ),
+    # ------ Music (MLX via the mlx-yue checkout; converted offline from these) --
+    Entry(
+        slug="yue2-3b",
+        category="music",
+        kind="hf",
+        repo="m-a-p/YuE2-3B",
+        runner="yue2",
+        approx_gb=7.3,
+        fits_128gb=True,
+        verified=True,
+        description="YuE2-3B — full songs (vocals + accompaniment) from a style prompt + structured lyrics; ABC-score planning and covers. 48kHz stereo.",
+        notes="CC BY-NC 4.0. Upstream torch BF16 checkpoint; yue2-mac runs it in MLX via ~/Views/llm/mlx-yue (vanch007/mlx-Yue), converted offline from this cache into mlx-yue/models/converted (8-bit AR). Needs yue2-vae. Torch/MPS fallback env: .venv-yue2.",
+        tags=["text-to-music", "songs", "vocals", "lyrics", "cover", "mlx"],
+    ),
+    Entry(
+        slug="yue2-vae",
+        category="music",
+        kind="hf",
+        repo="m-a-p/YuE2-Vae",
+        runner="yue2",
+        approx_gb=0.5,
+        fits_128gb=True,
+        verified=True,
+        description="YuE2 audio VAE decoder (latents -> 48kHz audio). Required by yue2-3b.",
+        tags=["vae", "decoder", "mlx"],
+    ),
+    Entry(
+        slug="sheetsage2",
+        category="music",
+        kind="hf",
+        repo="m-a-p/SheetSage2",
+        runner="yue2",
+        approx_gb=0.3,
+        fits_128gb=True,
+        verified=True,
+        description="SheetSage2 — audio -> lead-sheet ABC transcription (melody-only mode feeds YuE2 covers).",
+        notes="Loaded natively in MLX by mlx-yue (lyra.transcription) for the yue2-mac Cover tab. Adapter weights — needs mert-v2-fullsong (pinned rev d8ba1c74).",
+        tags=["transcription", "abc", "cover", "mlx"],
+    ),
+    Entry(
+        slug="mert-v2-fullsong",
+        category="music",
+        kind="hf",
+        repo="m-a-p/MERT-v2-FullSong",
+        runner="yue2",
+        approx_gb=2.5,
+        fits_128gb=True,
+        verified=True,
+        description="MERT-v2 full-song music encoder — base model under the SheetSage2 adapter.",
+        notes="SheetSage2 checks sha256 e6dd2ab1… at revision d8ba1c745e733b3908ce6ad16ebeb17ac7600a42.",
+        tags=["music-encoder", "mert", "mlx"],
+    ),
+    Entry(
+        slug="yue2-instrumental-lora",
+        category="music",
+        kind="hf",
+        repo="Mothersuperior/YuE2-instrumental-cot-full-loras",
+        runner="yue2",
+        approx_gb=0.3,
+        fits_128gb=True,
+        verified=True,
+        description="YuE2-3B AR LoRA (rank 64) for instrumental songs with a section plan; best with cot=full and tag-only lyrics ([intro]/[verse]/[chorus]/…).",
+        notes="CC BY-NC 4.0. Merged W += B@A (scale 1.0) into the MLX AR model by yue2-mac's server for Instrumental mode. bf16 file sha256 e408fd31…",
+        tags=["lora", "instrumental", "text-to-music", "mlx"],
+    ),
 ]}
 
 
@@ -563,7 +680,7 @@ def cmd_list(args: argparse.Namespace) -> int:
     for e in CATALOG.values():
         by_cat.setdefault(e.category, []).append(e)
 
-    for cat in ("llm", "image", "voice", "video"):
+    for cat in ("llm", "image", "voice", "video", "music"):
         if cat not in by_cat:
             continue
         print(f"\n=== {cat.upper()} ===")
@@ -737,6 +854,41 @@ def cmd_run(args: argparse.Namespace) -> int:
         dest = EXT / Path(e.repo).stem.removesuffix(".git")
         cmd = [sys.executable, "-m", "ltx2.generate", *extra]
         return _run_in_dir(cmd, dest)
+    elif e.runner == "yue2":
+        # Native MLX runtime from the vanch007/mlx-Yue checkout (py3.12 venv).
+        # Passes args to the `mlx-yue` CLI (generate / cover / transcribe / prepare).
+        py = ROOT / "mlx-yue" / ".venv" / "bin" / "python"
+        if not py.exists():
+            print(f"missing {py} — see yue2-mac/README.md for env setup", file=sys.stderr)
+            return 5
+        cmd = [str(py), "-m", "lyra.cli", *extra]
+    elif e.runner == "personaplex_py":
+        # The Python/MLX port lives in ext/personaplex-mlx and runs under its
+        # own 3.12 venv (the repo pins 3.12; the root .venv is 3.14).
+        dest = EXT / "personaplex-mlx"
+        py = ROOT / ".venv-personaplex" / "bin" / "python"
+        if not py.exists():
+            print(f"missing {py} — see {dest}/README.md for env setup", file=sys.stderr)
+            return 5
+        # No __main__.py in the package — the entrypoints are the submodules
+        # local_web (web UI on :8998), local (terminal), offline (wav->wav).
+        # Quantization is applied on the fly: pass `-q 4` / `-q 8`, or omit
+        # for the full bf16 checkpoint.
+        mod = "personaplex_mlx.local_web"
+        if extra and extra[0] in {"local", "local_web", "offline"}:
+            mod, extra = f"personaplex_mlx.{extra[0]}", extra[1:]
+        cmd = [str(py), "-m", mod, "--hf-repo", e.repo, *extra]
+        return _run_in_dir(cmd, dest)
+    elif e.runner == "personaplex_swift":
+        # Pre-split MLX weights consumed by the Swift app, not by a Python
+        # module. Print the snapshot path so it can be wired into the app.
+        try:
+            from huggingface_hub import snapshot_download
+            print(snapshot_download(repo_id=e.repo))
+        except Exception as exc:  # noqa: BLE001
+            print(f"could not resolve weights dir: {exc}", file=sys.stderr)
+            return 5
+        return 0
     elif e.runner == "git-readme":
         dest = EXT / Path(e.repo).stem.removesuffix(".git")
         print(f"This model has no MLX runner. See {dest}/README.md for invocation.")
